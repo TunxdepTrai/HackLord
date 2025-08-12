@@ -1,0 +1,132 @@
+local player = game.Players.LocalPlayer
+local checkpoints = workspace:WaitForChild("Checkpoints")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+_G.lastStage = _G.lastStage or 0
+
+-- Anti Kick
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local old = mt.__namecall
+mt.__namecall = newcclosure(function(self, ...)
+  if tostring(self) == "Kick" or getnamecallmethod() == "Kick" then
+    return nil
+  end
+  return old(self, ...)
+end)
+
+-- God Mode
+local function godMode(char)
+  local hum = char:FindFirstChildOfClass("Humanoid")
+  if hum then
+    hum.Name = "God"
+    hum.Health = 999999
+    hum.MaxHealth = 999999
+  end
+end
+
+-- Auto refill HP
+RunService.Heartbeat:Connect(function()
+  local char = player.Character
+  if char then
+    local hum = char:FindFirstChild("God")
+    if hum then hum.Health = 999999 end
+  end
+end)
+
+-- Save Checkpoint
+RunService.Heartbeat:Connect(function()
+  local char = player.Character
+  if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+  for i = 0, 250 do
+    local cp = checkpoints:FindFirstChild(tostring(i))
+    if cp and (char.HumanoidRootPart.Position - cp.Position).Magnitude < 9 then
+      _G.lastStage = i
+    end
+  end
+end)
+-- Auto Walk (speed based on distance, upgraded)
+local function autoWalk()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local humrp = char:WaitForChild("HumanoidRootPart")
+
+    for i = _G.lastStage, 250 do
+        local cp = checkpoints:FindFirstChild(tostring(i))
+        if cp then
+            local distance = (humrp.Position - cp.Position).Magnitude
+            -- tăng tốc nhẹ
+            local speed = distance > 60 and 3.3 or 1.65
+            -- giữ sát mặt đất để game tính điểm
+            local targetPos = Vector3.new(cp.Position.X, cp.Position.Y + 3, cp.Position.Z)
+            local goal = {CFrame = CFrame.new(targetPos)}
+
+            local tween = TweenService:Create(humrp, TweenInfo.new(speed, Enum.EasingStyle.Linear), goal)
+            tween:Play()
+            tween.Completed:Wait()
+
+            wait(0.15) -- giảm delay 1 chút cho nhanh hơn
+        end
+    end
+end
+
+-- Disable kill bricks
+for _, v in ipairs(workspace:GetDescendants()) do
+  if v:IsA("BasePart") and (v.BrickColor == BrickColor.Red() or v.Name:lower():find("kill") 
+     or v.Name:lower():find("lava") or v.Name:lower():find("death")) then
+    pcall(function()
+      v.CanTouch = false
+      v.CanCollide = false
+    end)
+  end
+end
+
+-- UI creation
+function createUI()
+  if player.PlayerGui:FindFirstChild("FierMiniFinal") then
+    player.PlayerGui:FindFirstChild("FierMiniFinal"):Destroy()
+  end
+  local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+  gui.Name = "FierMiniFinal"
+  
+  local frame = Instance.new("Frame", gui)
+  frame.Size = UDim2.new(0, 250, 0, 140)
+  frame.Position = UDim2.new(0, 20, 0, 100)
+  frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+  frame.Active = true
+  frame.Draggable = true
+
+  local title = Instance.new("TextLabel", frame)
+  title.Size = UDim2.new(1, 0, 0, 30)
+  title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+  title.Text = " Tunx Dep Trai "
+  title.TextColor3 = Color3.new(1, 1, 1)
+  title.Font = Enum.Font.SourceSansBold
+  title.TextSize = 18
+
+  local btn = Instance.new("TextButton", frame)
+  btn.Size = UDim2.new(1, -20, 0, 40)
+  btn.Position = UDim2.new(0, 10, 0, 50)
+  btn.BackgroundColor3 = Color3.fromRGB(80, 255, 120)
+  btn.Text = " Chó Hoàng Gay "
+  btn.TextColor3 = Color3.new(0, 0, 0)
+  btn.Font = Enum.Font.SourceSansBold
+  btn.TextSize = 16
+  btn.MouseButton1Click:Connect(function() autoWalk() end)
+end
+
+-- On Respawn
+player.CharacterAdded:Connect(function(char)
+  wait(1)
+  local cp = checkpoints:FindFirstChild(tostring(_G.lastStage))
+  if cp then
+    char:WaitForChild("HumanoidRootPart").CFrame = CFrame.new(cp.Position + Vector3.new(0, 5, 0))
+  end
+  godMode(char)
+  createUI()
+end)
+
+-- On start
+if player.Character then
+  godMode(player.Character)
+  createUI()
+end
